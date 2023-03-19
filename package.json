@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "devDependencies": {
+    "alchemy-sdk": "^2.6.1",
+    "ethers": "^5.7.2"
+  }
+}
