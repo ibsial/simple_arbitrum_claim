@@ -1,10 +1,11 @@
 import { ethers } from "ethers";
 import { erc20_abi, claim_abi } from "./abis.js";
 import { Alchemy, Network } from "alchemy-sdk";
-
+import chalk from "chalk";
 let pasta = `done by @Zetsubouq`
 const settings = {
-  apiKey: "<--alchemy_wss_key-->", // Replace with your Alchemy API Key.
+  apiKey: "<--alchemy_wss_key-->", // Replace with your Alchemy API KEY. 
+                                              // (not https://... or ws://, just key)
   network: Network.ETH_MAINNET, // Replace with your network.
 };
 const alchemy = new Alchemy(settings);
@@ -15,16 +16,16 @@ let prv_key_array = [
     "and_another_private_key"
 ]
 let destination_address_array = [
-    "your_destination_address",
-    "and_antoher_one",
     // destination addresses here
     // must be same length as private keys array
+    "your_destination_address",
+    "and_antoher_one",
 ]
 let rpc_array = [
+    // any rpc you can find... (https://...)
+    // can be even 1, but the more the better
     "<--alchemy_https_key-->",
     "<--another_alchemy_https_key-->",
-    // rpc urls
-    // can be even 1, but the more the better
 ]
 
 
@@ -36,7 +37,7 @@ let token = new ethers.Contract("0x912CE59144191C1204E64559FE8253a0e49E6548", er
 
 async function prepareToClaim(rpc) {
     for (let i = 0; i < prv_key_array.length; i++) {
-        let provider = new ethers.providers.AlchemyProvider(42161, rpc);
+        let provider = new ethers.providers.JsonRpcProvider(rpc, 42161);
         let wallet = new ethers.Wallet(prv_key_array[i], provider);  
 
         let current_nonce = await provider.getTransactionCount(wallet.address);
@@ -48,37 +49,35 @@ async function prepareToClaim(rpc) {
     }
 }
 async function sendClaimAndTransfer(rpc, prv_key, current_nonce, to_addr, claimableAmount) {
-    let provider = new ethers.providers.AlchemyProvider(42161, rpc);;
+    let provider = new ethers.providers.JsonRpcProvider(rpc, 42161);
     let wallet = new ethers.Wallet(prv_key, provider);
     
     try {
         let claimTx = claimContract.connect(wallet).claim({
         gasLimit: "0x4C4B40",// 5kk in case gas on L1 is expensive.. Read about arbitrums 2D fees to learn more
-        gasPrice: "0x3B9ACA00", // 1kk = 1 gwei in case network is  overloaded
+        gasPrice: "0x3B9ACA00", // 1kkk = 1 gwei in case network is  overloaded
         // MAX GAS USED TO CLAIM = 0.005 eth ~= 9$
         nonce: current_nonce,
     })
     .then(async a => {
         try {
-        let transferTx = token.connect(wallet).transfer(to_addr, claimableAmount, {
+        let transferTx = token.connect(wallet).transferFrom(wallet.address, to_addr, "0", {
             gasLimit: "0x4C4B40",// 5kk in case gas on L1 is expensive.. Read about arbitrums 2D fees to learn more
-            gasPrice: "0x3B9ACA00", // 1kk = 1 gwei in case network is  overloaded
+            gasPrice: "0x3B9ACA00", // 1kkk = 1 gwei in case network is  overloaded
         // MAX GAS USED TO CLAIM = 0.005 eth ~= 9$
         nonce: current_nonce+1,
         });
-        console.log("transfer hash:", await transferTx);
     }  catch(error) {
-        console.log("error on transfer occured..");
-        console.log("wallet: ", wallet.address);
-        console.log(error.reason);
+        console.log(chalk.red("error on transfer occured.."));
+        console.log(chalk.red("wallet: ", wallet.address));
+        console.log(error);
         return "";
     }
     })
-    console.log("claim tx hash:", claimTx);
     } catch(error) {
-        console.log("error occured");
-        console.log("wallet: ", wallet.address);
-        console.log(error.reason);
+        console.log(chalk.red("error occured"));
+        console.log(chalk.red("wallet: ", wallet.address));
+        console.log(error);
     }
     
 }
@@ -89,13 +88,13 @@ function sendMeMoneyBitch() {
         sendClaimAndTransfer(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i], amountToClaim[i]);
     }
 }
-function prepare() {
+async function prepare() {
     for (let i = 0; i < prv_key_array.length; i++) {
-        prepareToClaim(rpc_array[0]);
+        await prepareToClaim(rpc_array[0]);
     }
 }
-console.log(pasta);
-prepare();
+console.log(chalk.green(pasta));
+await prepare();
 
 alchemy.ws.on("block", 
 async (blockNumber) => {
@@ -103,5 +102,6 @@ console.log(blockNumber);
 if (blockNumber == 16890400) { // 16890400
     await new Promise(r => setTimeout(r, 1000));
     sendMeMoneyBitch();
+    alchemy.ws.removeAllListeners();
 }
 })
