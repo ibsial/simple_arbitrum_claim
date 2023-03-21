@@ -1,3 +1,5 @@
+### with love for https://t.me/hodlmodeth community
+
 install node js
 
 install all depencies by running 
