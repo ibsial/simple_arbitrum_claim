@@ -1,7 +1,6 @@
 {
   "type": "module",
   "devDependencies": {
-    "alchemy-sdk": "^2.6.1",
     "chalk": "^5.2.0",
     "ethers": "^5.7.2"
   }

@@ -1,14 +1,13 @@
 import { ethers } from "ethers";
-import { erc20_abi, claim_abi } from "./abis.js";
-import { Alchemy, Network } from "alchemy-sdk";
+import { erc20_abi, claim_abi, multicall_abi } from "./abis.js";
 import chalk from "chalk";
 let pasta = `done by @Zetsubouq 0x5c29C60e14643c6f04Bcf767170b4e785CB5F4D3`
-const settings = {
-  apiKey: "<--alchemy_wss_key-->", // Replace with your Alchemy API KEY. 
-                                   // (not https://... or ws://, just key)
-  network: Network.ETH_MAINNET, // Replace with your network.
-};
-const alchemy = new Alchemy(settings);
+
+// any rpc you can find... (https://...)
+// should be AS QUCK AS POSSIBLE
+let subscribe_rpc = "https://....";
+
+let subscribe_provider = new ethers.providers.JsonRpcProvider(subscribe_rpc, 42161);
 
 let prv_key_array = [
     // your private keys here
@@ -24,8 +23,8 @@ let destination_address_array = [
 let rpc_array = [
     // any rpc you can find... (https://...)
     // can be even 1, but the more the better
-    "https://...",
-    "another_https://...",
+    "your_rpc_https://...",
+    "another_rpc_https://...",
 ]
 
 
@@ -34,6 +33,7 @@ let currentNonce = [];
 
 let claimContract = new ethers.Contract("0x67a24CE4321aB3aF51c2D0a4801c3E111D88C9d9", claim_abi);
 let token = new ethers.Contract("0x912CE59144191C1204E64559FE8253a0e49E6548", erc20_abi);
+let multicall = new ethers.Contract("0x842eC2c7D803033Edf55E478F461FC547Bc54EB2", multicall_abi, subscribe_provider);
 
 async function prepareToClaim(rpc) {
     for (let i = 0; i < prv_key_array.length; i++) {
@@ -81,10 +81,10 @@ async function sendClaimAndTransfer(rpc, prv_key, current_nonce, to_addr, claima
     
 }
 
-function sendMeMoneyBitch() {
+async function sendMeMoneyBitch() {
     for (let i = 0; i < prv_key_array.length; i++) {
         
-        sendClaimAndTransfer(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i], amountToClaim[i]);
+        await sendClaimAndTransfer(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i], amountToClaim[i]);
     }
 }
 async function prepare() {
@@ -92,15 +92,22 @@ async function prepare() {
         await prepareToClaim(rpc_array[0]);
     }
 }
+async function waitTs() {
+    for (let i = 0; i >= 0; i++) {
+        if(Date.now() >= 1679574000000) { // some time before claiming peroid
+            for (let j = 0; j >= 0; j++) {
+                if ((await multicall.getL1BlockNumber()).gt("16890400")) { // get L1BlockNumber from arbi
+                    await sendMeMoneyBitch();
+                    return;
+                } else {
+                    console.log("block not synced");
+                    await new Promise(r => setTimeout(r, 500));
+                }
+            }
+        }
+    }
+}
+
 console.log(chalk.green(pasta));
 await prepare();
-
-alchemy.ws.on("block", 
-async (blockNumber) => {
-console.log(blockNumber);
-if (blockNumber >= 16890400) { // 16890400
-    await new Promise(r => setTimeout(r, 700));
-    sendMeMoneyBitch();
-    alchemy.ws.removeAllListeners();
-}
-})
+waitTs();
