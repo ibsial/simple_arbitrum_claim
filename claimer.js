@@ -80,16 +80,9 @@ async function sendClaimAndTransfer(rpc, prv_key, current_nonce, to_addr, claima
     
     
 }
-
 async function sendMeMoneyBitch() {
     for (let i = 0; i < prv_key_array.length; i++) {
-        
-        await sendClaimAndTransfer(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i], amountToClaim[i]);
-    }
-}
-async function prepare() {
-    for (let i = 0; i < prv_key_array.length; i++) {
-        await prepareToClaim(rpc_array[0]);
+        await sendClaimAndTransfer(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i % destination_address_array.length], amountToClaim[i]);
     }
 }
 async function waitTs() {
@@ -98,6 +91,7 @@ async function waitTs() {
             for (let j = 0; j >= 0; j++) {
                 if ((await multicall.getL1BlockNumber()).gt("16890400")) { // get L1BlockNumber from arbi
                     await sendMeMoneyBitch();
+                    console.log("job's done. If no error was printed, everything completed");
                     return;
                 } else {
                     console.log("block not synced");
@@ -109,5 +103,5 @@ async function waitTs() {
 }
 
 console.log(chalk.green(pasta));
-await prepare();
+await prepareToClaim(rpc_array[0]);
 waitTs();
