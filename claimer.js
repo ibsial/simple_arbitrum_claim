@@ -89,7 +89,7 @@ async function waitTs() {
     for (let i = 0; i >= 0; i++) {
         if(Date.now() >= 1679574000000) { // some time before claiming peroid
             for (let j = 0; j >= 0; j++) {
-                if ((await multicall.getL1BlockNumber()).gt("16890400")) { // get L1BlockNumber from arbi
+                if ((await multicall.getL1BlockNumber()).gte("16890400")) { // get L1BlockNumber from arbi
                     await sendMeMoneyBitch();
                     console.log("job's done. If no error was printed, everything completed");
                     return;
