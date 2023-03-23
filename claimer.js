@@ -66,7 +66,7 @@ async function sendClaimAndTransfer(rpc, prv_key, current_nonce, to_addr, claima
     }
     await new Promise(r => setTimeout(r, 30));
     try {
-        let transferTx = token.connect(wallet).transferFrom(wallet.address, to_addr, claimableAmount, {
+        let transferTx = token.connect(wallet).transfer(to_addr, claimableAmount, {
             gasLimit: "0x4C4B40",// 5kk in case gas on L1 is expensive.. Read about arbitrums 2D fees to learn more
             gasPrice: "0x3B9ACA00", // 1kkk = 1 gwei in case network is  overloaded
         // MAX GAS USED TO CLAIM = 0.005 eth ~= 9$
