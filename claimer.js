@@ -48,30 +48,40 @@ async function prepareToClaim(rpc) {
         console.log("currentNonce", currentNonce);
     }
 }
-async function sendClaimAndTransfer(rpc, prv_key, current_nonce, to_addr, claimableAmount) {
+async function sendClaim(rpc, prv_key, current_nonce, to_addr, claimableAmount) {
     let provider = new ethers.providers.JsonRpcProvider(rpc, 42161);
     let wallet = new ethers.Wallet(prv_key, provider);
     
     try {
-        let claimTx = claimContract.connect(wallet).claim({
-        gasLimit: "0x4C4B40",// 5kk in case gas on L1 is expensive.. Read about arbitrums 2D fees to learn more
-        gasPrice: "0x3B9ACA00", // 1kkk = 1 gwei in case network is  overloaded
-        // MAX GAS USED TO CLAIM = 0.005 eth ~= 9$
-        nonce: current_nonce,
-    })
+        let claimTx = claimContract.connect(wallet).claim()
+    console.log(await claimTx)
     } catch(error) {
         console.log(chalk.red("error on claim occured"));
         console.log(chalk.red("wallet: ", wallet.address));
-        console.log(error);
+        console.log(error.reason);
     }
     await new Promise(r => setTimeout(r, 30));
     try {
+        let transferTx = token.connect(wallet).transfer(to_addr, claimableAmount);
+        console.log(await transferTx)
+    }  catch(error) {
+        console.log(chalk.red("error on transfer occured.."));
+        console.log(chalk.red("wallet: ", wallet.address));
+        console.log(error);
+    }
+}
+
+async function sendTransfer(rpc, prv_key, current_nonce, to_addr, claimableAmount) {
+    let provider = new ethers.providers.JsonRpcProvider(rpc, 42161);
+    let wallet = new ethers.Wallet(prv_key, provider);
+
+    try {
         let transferTx = token.connect(wallet).transfer(to_addr, claimableAmount, {
-            gasLimit: "0x4C4B40",// 5kk in case gas on L1 is expensive.. Read about arbitrums 2D fees to learn more
-            gasPrice: "0x3B9ACA00", // 1kkk = 1 gwei in case network is  overloaded
+            gasLimit: "2000000",// 5kk in case gas on L1 is expensive.. Read about arbitrums 2D fees to learn more
+            gasPrice: "6000000000", // 1kkk = 1 gwei in case network is  overloaded
         // MAX GAS USED TO CLAIM = 0.005 eth ~= 9$
-        nonce: current_nonce+1,
         });
+        console.log(await transferTx)
     }  catch(error) {
         console.log(chalk.red("error on transfer occured.."));
         console.log(chalk.red("wallet: ", wallet.address));
@@ -82,18 +92,26 @@ async function sendClaimAndTransfer(rpc, prv_key, current_nonce, to_addr, claima
 }
 async function sendMeMoneyBitch() {
     for (let i = 0; i < prv_key_array.length; i++) {
-        await sendClaimAndTransfer(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i % destination_address_array.length], amountToClaim[i]);
+        if (amountToClaim == 0) {
+            let claimableAmount = await token.connect(wallet).balanceOf(wallet.address);
+                console.log("tokens have been already claimed, transferring now")
+            await sendTransfer(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i % destination_address_array.length], claimableAmount);
+        } else {
+        await sendClaim(rpc_array[i % rpc_array.length], prv_key_array[i], currentNonce[i], destination_address_array[i % destination_address_array.length], amountToClaim[i]);
+        console.log("tokens are not claimed yet, need to claim and transfer")
+    }
     }
 }
 async function waitTs() {
     for (let i = 0; i >= 0; i++) {
         if(Date.now() >= 1679574000000) { // some time before claiming peroid
             for (let j = 0; j >= 0; j++) {
-                if ((await multicall.getL1BlockNumber()).gte("16890400")) { // get L1BlockNumber from arbi
+                let BN = await multicall.getL1BlockNumber();
+                if ((BN).gte("16890400")) { // get L1BlockNumber from arbi
                     await sendMeMoneyBitch();
                     console.log("job's done. If no error was printed, everything completed");
-                    return;
                 } else {
+                    console.log(BN.toString())
                     console.log("block not synced");
                     await new Promise(r => setTimeout(r, 500));
                 }
